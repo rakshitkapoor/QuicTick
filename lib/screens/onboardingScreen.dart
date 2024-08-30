@@ -57,7 +57,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               );
             },
-            child: Text("Book now"),
+            child: Text("Create Account now"),
           ),
           Center(
             child: LottieBuilder.network(
