@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:codesix/constants/dummyList.dart';
 import 'package:codesix/widgets/appDrawer.dart';
 import 'package:codesix/widgets/customIconContainer.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +8,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:codesix/widgets/own_message_card.dart';
 import 'package:codesix/widgets/reply_message_card.dart';
 import 'package:codesix/widgets/glassmorphism.dart';
+import 'package:http/http.dart' as http;
 
 // import 'package:codesix/services/chat_service.dart'; // You'll need to create this
 
@@ -20,7 +24,13 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _chatMessages = [];
   bool _isTyping = false;
-  // final ChatService _chatService = ChatService(); // You'll need to implement this
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with a welcome message
+    _getBotResponse("Welcome");
+  }
 
   @override
   void dispose() {
@@ -32,36 +42,24 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   void _sendMessage() async {
     if (_textController.text.trim().isEmpty) return;
 
+    final userMessage = _textController.text;
     setState(() {
       _chatMessages.add({
-        'msg': _textController.text,
+        'msg': userMessage,
         'chatIndex': 0,
       });
       _isTyping = true;
     });
 
-    _scrollToBottom();
-    
-    final userMessage = _textController.text;
     _textController.clear();
+    _scrollToBottom();
 
-    try {
-      // final response = await _chatService.sendMessage(userMessage);
-      setState(() {
-        _chatMessages.add({
-          'msg': _textController.text,
-          'chatIndex': 1,
-        });
-        _isTyping = false;
-      });
-    } catch (e) {
-      // Handle error
-      print('Error: $e');
-      setState(() {
-        _isTyping = false;
-      });
-      // Show error message to user
-    }
+    // Call the API with the user's message
+    await _getBotResponse(userMessage);
+
+    setState(() {
+      _isTyping = false;
+    });
 
     _scrollToBottom();
   }
@@ -78,6 +76,36 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     });
   }
 
+  Future<void> _getBotResponse(String req) async {
+    try {
+      http.Response response = await http.post(
+        Uri.parse("http://10.12.46.204:5000/process"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'input_string': req}),
+      );
+
+      if (response.statusCode == 200) {
+        var responseData = jsonDecode(response.body);
+        setState(() {
+          _chatMessages.add({
+            'msg': responseData['processed_string'],
+            'chatIndex': 1,
+          });
+        });
+      } else {
+        throw Exception('Failed to get response from the server');
+      }
+    } catch (e) {
+      print('Error: $e');
+      setState(() {
+        _chatMessages.add({
+          'msg': "Sorry, I couldn't process your request. Please try again.",
+          'chatIndex': 1,
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -87,7 +115,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           automaticallyImplyLeading: true,
           title: const Text("New Chat"),
           centerTitle: true,
-          
         ),
         body: Column(
           children: [

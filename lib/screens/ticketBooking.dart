@@ -63,7 +63,7 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
                     SizedBox(height: 24),
                     Text(
                       'Select Tickets',
-                      style: Theme.of(context).textTheme.headline6,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     SizedBox(height: 16),
                     Expanded(
@@ -258,7 +258,7 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
               children: <Widget>[
                 Text(
                   'Booking Confirmation',
-                  style: Theme.of(context).textTheme.headline6,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 SizedBox(height: 16),
                 Text(
