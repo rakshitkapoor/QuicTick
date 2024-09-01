@@ -17,6 +17,8 @@ class ExploreMuseums extends StatelessWidget {
       name: "National Science Centre Delhi",
       imagePath: "assets/images/nscdMuseum.jpg",
     ),
+    Museum(name: "National Railway Museum", imagePath: "assets/images/Railway.jpg"),
+    Museum(name: "Victoria Memorial Hall, Kolkata",imagePath: "assets/images/VictoriaHall.jpg")
     // Add more museums here in the future
   ];
 

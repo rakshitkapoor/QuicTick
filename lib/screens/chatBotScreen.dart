@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:codesix/constants/dummyList.dart';
+import 'package:codesix/screens/ticketBooking.dart';
 import 'package:codesix/widgets/appDrawer.dart';
 import 'package:codesix/widgets/customIconContainer.dart';
+import 'package:codesix/widgets/fancyButton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:codesix/widgets/own_message_card.dart';
@@ -19,21 +21,36 @@ class ChatBotScreen extends StatefulWidget {
   State<ChatBotScreen> createState() => _ChatBotScreenState();
 }
 
-class _ChatBotScreenState extends State<ChatBotScreen> {
+class _ChatBotScreenState extends State<ChatBotScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _chatMessages = [];
   bool _isTyping = false;
+  bool intentFound = false;
+  late AnimationController _animationController;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     // Initialize with a welcome message
-    _getBotResponse("Welcome");
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -86,9 +103,11 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
+        // print("Response: ${responseData['intent']}");
+        if (responseData['intent'] == 'book_ticket' || responseData['intent'] == 'parchi_kaatna') intentFound = true;
         setState(() {
           _chatMessages.add({
-            'msg': responseData['processed_string'],
+            'msg': responseData['Response'],
             'chatIndex': 1,
           });
         });
@@ -119,14 +138,39 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         body: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: _chatMessages.length,
-                itemBuilder: (context, index) {
-                  return _chatMessages[index]['chatIndex'] == 0
-                      ? OwnMessageCard(message: _chatMessages[index]['msg'])
-                      : ReplyMessageCard(message: _chatMessages[index]['msg']);
-                },
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _chatMessages.length,
+                    itemBuilder: (context, index) {
+                      return _chatMessages[index]['chatIndex'] == 0
+                          ? OwnMessageCard(message: _chatMessages[index]['msg'])
+                          : ReplyMessageCard(
+                              message: _chatMessages[index]['msg']);
+                    },
+                  ),
+                  if (intentFound)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom:
+                          60, // Adjust this value to position the button above the input area
+                      child: SlideTransition(
+                        position: _slideAnimation,
+
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: FancyBookButton(
+                            onPressed: () {
+                              // Navigate to booking screen
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const TicketBookingPage(),),);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             if (_isTyping)
@@ -163,7 +207,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                   ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

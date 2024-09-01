@@ -116,14 +116,14 @@ class Dashboard extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AboutUs(),
+                            builder: (context) => AboutUsScreen(),
                           ),
                         );
                       case 3:
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => FaqScreen(),
+                            builder: (context) => FAQScreen(),
                           ),
                         );
                     }

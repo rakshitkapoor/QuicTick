@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 
 final theme = ThemeData( 
   brightness: Brightness.light,
-  colorScheme: ColorScheme.light(
-    primary: Colors.teal.shade100,
+  colorScheme: const ColorScheme.light(
+    primary: Colors.teal,
     secondary: Colors.white,
     tertiary: Colors.white
   )

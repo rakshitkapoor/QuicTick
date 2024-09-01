@@ -1,7 +1,13 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:codesix/screens/dashboard.dart';
 import 'package:codesix/widgets/appDrawer.dart';
 import 'package:codesix/widgets/glassMorphism.dart';
+import 'package:custom_qr_generator/custom_qr_generator.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:http/http.dart' as http;
 
 class TicketBookingPage extends StatefulWidget {
   const TicketBookingPage({Key? key}) : super(key: key);
@@ -14,6 +20,11 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
   final _formKey = GlobalKey<FormState>();
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
+  var totalAmount = 0.0;
+  String _randomNumbers = '';
+  String? storedRandomNumber;
+  late Razorpay _razorpay;
+  bool _isPaymentProcessed = false;
 
   final Map<String, double> ticketPrices = {
     'General Entry': 70,
@@ -37,11 +48,100 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
     super.initState();
     ticketQuantities =
         Map.fromIterable(ticketPrices.keys, key: (k) => k, value: (_) => 0);
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    var screenSize = MediaQuery.of(context).size;
+    if (!_isPaymentProcessed) {
+      _isPaymentProcessed = true;
+      _generateRandomNumbers();
+      print("Payment Success");
+      print("Random Number: $storedRandomNumber");
+
+      showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return Container(
+            width: screenSize.width,
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize:
+                  MainAxisSize.min, // Set this to take minimum vertical space
+              children: <Widget>[
+                Text(
+                  'Booking Confirmation',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                Container(
+                  child: CustomPaint(
+                    painter: QrPainter(
+                      data: _randomNumbers,
+                      options: const QrOptions(
+                        shapes: QrShapes(
+                          darkPixel:
+                              QrPixelShapeRoundCorners(cornerFraction: 0.05),
+                          frame: QrFrameShapeCircle(),
+                          ball: QrBallShapeCircle(),
+                        ),
+                        colors: QrColors(
+                          dark: QrColorSolid(Colors.black),
+                          light: QrColorSolid(Colors.black),
+                        ),
+                      ),
+                    ),
+                    size: const Size(150, 150),
+                  ),
+                ),
+                Text("Venue: National Science Centre, Delhi"),
+                Text(
+                    "Date: ${DateFormat('EEEE, MMM d, yyyy').format(selectedDate!)}"),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Dashboard(),
+                        ));
+                  },
+                  child: const Text("Okay"),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    // Do something when payment fails
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment failed! Please try again.')),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    // Do something when an external wallet was selected
+  }
+
+  void _generateRandomNumbers() {
+    print("Generating Random Number");
+    final _random = Random();
+    _randomNumbers =
+        (_random.nextInt(900000) + 1000000).toString(); // 7-digit string
+    storedRandomNumber = _randomNumbers; // store the generated random number
+    print("Random Number Generated: $storedRandomNumber");
   }
 
   @override
   Widget build(BuildContext context) {
-    print(ticketQuantities);
+    print(DateTime.utc);
     return Scaffold(
       drawer: AppDrawer(),
       appBar: AppBar(
@@ -102,6 +202,32 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (picked != null && _isTimeValid(picked)) {
+      setState(() {
+        selectedTime = picked;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a time after the current time.')),
+      );
+    }
+  }
+
+  bool _isTimeValid(TimeOfDay picked) {
+    final now = TimeOfDay.now();
+    if (picked.hour > now.hour ||
+        (picked.hour == now.hour && picked.minute > now.minute)) {
+      return true;
+    }
+    return false;
   }
 
   Widget _buildTimePicker() {
@@ -177,6 +303,7 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
   Widget _buildBottomBar() {
     double totalPrice = ticketPrices.entries.fold(
         0, (sum, entry) => sum + (entry.value * ticketQuantities[entry.key]!));
+    totalAmount = totalPrice;
     return GlassmorphicContainer(
       blurStrength: 10,
       bgColor: Colors.teal,
@@ -215,21 +342,45 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
     }
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
+Future<void> _PostTicket(String key) async {
+  try {
+    // Generate the current date and time in the required format
+    String bookedAt = DateTime.now().toUtc().toIso8601String() + 'Z';
+
+    // Post the ticket details to the server
+    final response = await http.post(
+      Uri.parse("http://10.12.46.204:5000/process"),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "id": 1,
+        "user": "rakshit",
+        "booked_at": bookedAt,
+        "key": key,
+        "slot": 2
+      }),
     );
-    if (picked != null && picked != selectedTime) {
-      setState(() {
-        selectedTime = picked;
-      });
+
+    // Handle the HTTP response
+    if (response.statusCode == 200) {
+      // If the server returns a 200 OK response, parse the JSON
+      print('Ticket posted successfully: ${response.body}');
+     
+    } else {
+      // If the server returns an error response, throw an exception
+      print('Failed to post ticket: ${response.statusCode}');
+      print('Response body: ${response.body}');
     }
+  } catch (e) {
+    // Handle any errors that occur during the HTTP request
+    print('Error posting ticket: $e');
   }
+}
 
   void _bookTickets() {
-    var screenSize=MediaQuery.of(context).size;
-    if (_formKey.currentState!.validate()) {
+    var screenSize = MediaQuery.of(context).size;
+    if (_formKey.currentState!.validate() ||
+        selectedDate == null ||
+        selectedTime == null) {
       // Ensure at least one ticket is selected
       if (ticketQuantities.values.every((quantity) => quantity == 0)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -243,7 +394,7 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
           .where((entry) => entry.value > 0)
           .map((entry) => '${entry.key}: ${entry.value}')
           .join('\n');
-
+          
       showModalBottomSheet(
         context: context,
         builder: (BuildContext context) {
@@ -270,10 +421,27 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
                 Text(bookingSummary),
                 SizedBox(height: 16),
                 FilledButton(
-                  style: ButtonStyle(fixedSize: MaterialStatePropertyAll(Size(screenSize.width*0.9,screenSize.width*0.13))),
+                  style: ButtonStyle(
+                      fixedSize: WidgetStatePropertyAll(Size(
+                          screenSize.width * 0.9, screenSize.width * 0.13))),
                   child: Text('Confirm'),
                   onPressed: () {
                     Navigator.of(context).pop();
+                    _isPaymentProcessed = false;
+                    print("Amount: $totalAmount");
+                    var options = {
+                      'key': 'rzp_test_Y821RY8RBBNuvj',
+                      'amount': totalAmount * 100,
+                      'currency': 'INR',
+                      'name': 'Acme Corp.',
+                      'description': 'Fine T-Shirt',
+                      'prefill': {
+                        'contact': '9625232065',
+                        'email': 'test@razorpay.com'
+                      }
+                    };
+                    _razorpay.open(options);
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Booking successful!')),
                     );
@@ -285,5 +453,12 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
         },
       );
     }
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    _razorpay.clear();
   }
 }
