@@ -96,7 +96,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   Future<void> _getBotResponse(String req) async {
     try {
       http.Response response = await http.post(
-        Uri.parse("http://10.12.46.204:5000/process"),
+        Uri.parse("http://10.12.22.241:5000/process"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'input_string': req}),
       );

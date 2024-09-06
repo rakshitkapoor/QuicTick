@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: true,
       theme: theme,
-      home: Dashboard(),
+      home: OnboardingScreen(),
     );
   }
 }

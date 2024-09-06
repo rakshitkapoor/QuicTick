@@ -24,24 +24,23 @@ class OnboardingScreen extends StatelessWidget {
           ShaderMask(
             shaderCallback: (bounds) => linearGradient1,
             child: Text(
-              "Make it ",
+              "QuicTick",
               style: Theme.of(context)
                   .textTheme
-                  .displayMedium!
-                  .copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ShaderMask(
-            shaderCallback: (bounds) => linearGradient2,
-            child: Text(
-              "awesome. ",
-              style: Theme.of(context)
-                  .textTheme
-                  .displayMedium!
+                  .displayLarge!
                   .copyWith(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
           SizedBox(height: screenSize.height*0.03),
+          
+          Center(
+            child: LottieBuilder.network(
+              "https://lottie.host/eb34e134-4795-4366-b438-ef853f5d2d50/lynIeIHiUd.json",
+              repeat: true,
+              frameRate: FrameRate(30),
+            ),
+          ),
+
           FilledButton(
             style: ButtonStyle(
               backgroundColor: MaterialStatePropertyAll(Colors.green),
@@ -57,13 +56,11 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               );
             },
-            child: Text("Create Account now"),
-          ),
-          Center(
-            child: LottieBuilder.network(
-              "https://lottie.host/eb34e134-4795-4366-b438-ef853f5d2d50/lynIeIHiUd.json",
-              repeat: true,
-              frameRate: FrameRate(30),
+            child: Row(
+              children: [
+                Text("Get Started Now"),
+                Icon(Icons.arrow_forward_ios),
+              ],
             ),
           ),
         ],
