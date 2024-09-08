@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:codesix/constants/dummyList.dart';
 import 'package:codesix/screens/ticketBooking.dart';
 import 'package:codesix/widgets/appDrawer.dart';
@@ -11,6 +12,7 @@ import 'package:codesix/widgets/own_message_card.dart';
 import 'package:codesix/widgets/reply_message_card.dart';
 import 'package:codesix/widgets/glassmorphism.dart';
 import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
 
 // import 'package:codesix/services/chat_service.dart'; // You'll need to create this
 
@@ -37,14 +39,14 @@ class _ChatBotScreenState extends State<ChatBotScreen>
     // Initialize with a welcome message
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 300),
+      duration: Duration(seconds: 5),
     );
     _slideAnimation = Tween<Offset>(
-      begin: Offset(0, 1),
+      begin: const Offset(0, 1),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeOut,
+      curve: Curves.easeInSine,
     ));
   }
 
@@ -96,15 +98,19 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   Future<void> _getBotResponse(String req) async {
     try {
       http.Response response = await http.post(
-        Uri.parse("http://10.12.22.241:5000/process"),
+        Uri.parse("http://192.168.1.5:5000/process"),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'input_string': req}),
       );
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
+        if (!responseData.containsKey('Response')) {
+          throw Exception("Response not found");
+        }
         // print("Response: ${responseData['intent']}");
-        if (responseData['intent'] == 'book_ticket' || responseData['intent'] == 'parchi_kaatna') intentFound = true;
+        if (responseData['intent'] == 'book_ticket' ||
+            responseData['intent'] == 'parchi_kaatna') intentFound = true;
         setState(() {
           _chatMessages.add({
             'msg': responseData['Response'],
@@ -127,9 +133,11 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
   @override
   Widget build(BuildContext context) {
+    print(_chatMessages);
     var screenSize = MediaQuery.of(context).size;
     return SafeArea(
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           automaticallyImplyLeading: true,
           title: const Text("New Chat"),
@@ -140,16 +148,54 @@ class _ChatBotScreenState extends State<ChatBotScreen>
             Expanded(
               child: Stack(
                 children: [
-                  ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _chatMessages.length,
-                    itemBuilder: (context, index) {
-                      return _chatMessages[index]['chatIndex'] == 0
-                          ? OwnMessageCard(message: _chatMessages[index]['msg'])
-                          : ReplyMessageCard(
-                              message: _chatMessages[index]['msg']);
-                    },
-                  ),
+                  _chatMessages.isEmpty
+                      ? SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: screenSize.height -
+                                  AppBar().preferredSize.height -
+                                  MediaQuery.of(context).padding.top -
+                                  MediaQuery.of(context).viewInsets.bottom -
+                                  100, // Approximate height of input area
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  LottieBuilder.network(
+                                    "https://lottie.host/3fa0d2f7-a3ba-4bad-a89a-405cead743ad/DdlGxRptf0.json",
+                                    repeat: true,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TyperAnimatedTextKit(
+                                    text: const [
+                                      'How may I help you?',
+                                      "Show me my bookings",
+                                      "Nearby Attractions",
+                                      "Book tickets!",
+                                      "What's the cost of Tickets"
+                                    ],
+                                    textStyle: const TextStyle(
+                                      fontSize: 20.0,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _chatMessages.length,
+                          itemBuilder: (context, index) {
+                            return _chatMessages[index]['chatIndex'] == 0
+                                ? OwnMessageCard(
+                                    message: _chatMessages[index]['msg'])
+                                : ReplyMessageCard(
+                                    message: _chatMessages[index]['msg']);
+                          },
+                        ),
                   if (intentFound)
                     Positioned(
                       left: 0,
@@ -158,13 +204,19 @@ class _ChatBotScreenState extends State<ChatBotScreen>
                           60, // Adjust this value to position the button above the input area
                       child: SlideTransition(
                         position: _slideAnimation,
-
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: FancyBookButton(
                             onPressed: () {
+                              intentFound = false;
                               // Navigate to booking screen
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => const TicketBookingPage(),),);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const TicketBookingPage(),
+                                ),
+                              );
                             },
                           ),
                         ),

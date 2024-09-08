@@ -1,9 +1,10 @@
+import 'package:codesix/models/museum_model.dart';
 import 'package:codesix/screens/ticketBooking.dart';
 import 'package:flutter/material.dart';
 
 class MuseumDetail extends StatelessWidget {
-  const MuseumDetail({super.key});
-
+  const MuseumDetail({super.key,required this.museum});
+  final Museum museum;
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
@@ -16,9 +17,10 @@ class MuseumDetail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Hero(
+              key: key,
               tag: "museum",
               child: Image.asset(
-                "assets/images/nscdMuseum.jpg",
+                museum.imagePath,
                 fit: BoxFit.cover,
                 height: 200,
               ),
@@ -28,17 +30,17 @@ class MuseumDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'National Science Centre Delhi',
-                    style: TextStyle(
+                   Text(
+                    museum.name,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'National Science Centre, Delhi is one of the largest Science Centre in Asia and it is popularly known amongst its visitors as, “A Dream Castle for One and All”. The iconic structure of the Centre is an exemplary landmark in the arena of modern architecture which is strategically located in the vicinity of the commercial exhibition hub of India i.e. Pragati Maidan Complex. The Annual footfall to the Centre is more than half a million visitors. Nobel Laureates, Eminent Scientists & Technocrats, Astronauts, Museum Professionals and many more luminaries from various fields are its regular visitors. The primary objective of the Centre is to engage , educate and entertain the visitors through thematic exhibitions, interactive educational activities and outreach programmes.',
-                    style: TextStyle(fontSize: 16),
+                   Text(
+                    museum.desc,
+                    style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   FilledButton(
@@ -52,7 +54,7 @@ class MuseumDetail extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => TicketBookingPage(),
+                          builder: (context) => TicketBookingPage(museum: museum.name,),
                         ),
                       );
                     },

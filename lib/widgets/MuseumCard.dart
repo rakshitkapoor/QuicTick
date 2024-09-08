@@ -1,3 +1,4 @@
+import 'package:codesix/models/museum_model.dart';
 import 'package:codesix/screens/exploreMuseums.dart';
 import 'package:flutter/material.dart';
 

@@ -1,21 +1,59 @@
+import 'dart:convert';
+
+import 'package:codesix/models/ticket_model.dart';
+import 'package:codesix/widgets/ticket_card.dart';
 import 'package:custom_qr_generator/custom_qr_generator.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
 
-class MyBookings extends StatelessWidget {
+class MyBookings extends StatefulWidget {
+  @override
+  State<MyBookings> createState() => _MyBookingsState();
+}
+
+class _MyBookingsState extends State<MyBookings> {
   final List<Ticket> tickets = [
-    Ticket(
-      qrData: '123456',
-      venue: 'National Science Centre, Delhi',
-      date: DateTime.now().add(Duration(days: 2)),
-    ),
-    Ticket(
-      qrData: '789012',
-      venue: 'National Museum, New Delhi',
-      date: DateTime.now().add(Duration(days: 5)),
-    ),
+    // Ticket(
+    //   user: 'rakshit'
+    //   key: '123456',
+    //   venue: 'National Science Centre, Delhi',
+    //   date: DateTime.now().add(Duration(days: 2)),
+    // ),
+    // Ticket(
+    //   key: '789012',
+    //   venue: 'National Museum, New Delhi',
+    //   date: DateTime.now().add(Duration(days: 5)),
+    // ),
     // Add more tickets as needed
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _getTickets();
+  }
+
+  Future<void> _getTickets() async {
+    http.Response response = await http.get(
+      Uri.parse("http://192.168.1.5:8000/api/tickets"),
+    );
+    final responseData = jsonDecode(response.body);
+    print("Tickets Data: ${responseData}");
+
+    for (var data in responseData) {
+      if (data['qr_code'] != null) {
+        tickets.add(Ticket(data['user'], data['slot'],
+            key: data['qr_code'],
+            venue: "National Science Museum",
+            date: DateTime.now().add(Duration(days: 2))));
+      }
+    }
+    print("Final Tickets List: ");
+    for (var ticket in tickets) {
+      print(ticket.user + " " + ticket.key + " " + ticket.slot.toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,71 +61,20 @@ class MyBookings extends StatelessWidget {
       appBar: AppBar(
         title: Text('My Tickets'),
       ),
-      body: ListView.builder(
-        itemCount: tickets.length,
-        itemBuilder: (context, index) {
-          return TicketCard(ticket: tickets[index]);
-        },
-      ),
+      body: (tickets.isEmpty)
+          ? Center(
+              child: LottieBuilder.network(
+                "https://lottie.host/9f1cd1bc-2a49-409b-8fb0-a66e23f2a755/nAmyxB8JtI.json",
+                repeat: false,
+                frameRate: FrameRate(30),
+              ),
+            )
+          : ListView.builder(
+              itemCount: tickets.length,
+              itemBuilder: (context, index) {
+                return TicketCard(ticket: tickets[index]);
+              },
+            ),
     );
   }
-}
-
-class TicketCard extends StatelessWidget {
-  final Ticket ticket;
-
-  const TicketCard({Key? key, required this.ticket}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.all(16),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-                  child: CustomPaint(
-                    painter: QrPainter(
-                      data: "321234",
-                      options: const QrOptions(
-                        shapes: QrShapes(
-                          darkPixel:
-                              QrPixelShapeRoundCorners(cornerFraction: 0.05),
-                          frame: QrFrameShapeCircle(),
-                          ball: QrBallShapeCircle(),
-                        ),
-                        colors: QrColors(
-                          dark: QrColorSolid(Colors.black),
-                          light: QrColorSolid(Colors.black),
-                        ),
-                      ),
-                    ),
-                    size: const Size(150, 150),
-                  ),
-                ),
-            SizedBox(height: 16),
-            Text(
-              ticket.venue,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Date: ${DateFormat('EEEE, MMM d, yyyy').format(ticket.date)}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Ticket {
-  final String qrData;
-  final String venue;
-  final DateTime date;
-
-  Ticket({required this.qrData, required this.venue, required this.date});
 }

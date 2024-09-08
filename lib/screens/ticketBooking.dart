@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:codesix/constants/museum_list.dart';
 import 'package:codesix/screens/dashboard.dart';
 import 'package:codesix/widgets/appDrawer.dart';
 import 'package:codesix/widgets/glassMorphism.dart';
@@ -10,8 +11,8 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
 
 class TicketBookingPage extends StatefulWidget {
-  const TicketBookingPage({Key? key}) : super(key: key);
-
+  const TicketBookingPage({Key? key,this.museum}) : super(key: key);
+  final String? museum;
   @override
   _TicketBookingPageState createState() => _TicketBookingPageState();
 }
@@ -102,8 +103,9 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
                 Text(
                     "Date: ${DateFormat('EEEE, MMM d, yyyy').format(selectedDate!)}"),
                 FilledButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
+                  onPressed: () async{
+                    await _PostTicket(_randomNumbers);
+                     Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (context) => Dashboard(),
@@ -342,39 +344,39 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
     }
   }
 
-Future<void> _PostTicket(String key) async {
-  try {
-    // Generate the current date and time in the required format
-    String bookedAt = DateTime.now().toUtc().toIso8601String() + 'Z';
+  Future<void> _PostTicket(String key) async {
+    try {
+      // Generate the current date and time in the required format
+      String bookedAt = DateTime.now().toUtc().toIso8601String() + 'Z';
 
-    // Post the ticket details to the server
-    final response = await http.post(
-      Uri.parse("http://10.12.46.204:5000/process"),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        "id": 1,
-        "user": "rakshit",
-        "booked_at": bookedAt,
-        "key": key,
-        "slot": 2
-      }),
-    );
+      // Post the ticket details to the server
+      final response = await http.post(
+        Uri.parse("http://192.168.1.5:8000/api/tickets/"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "id": 1,
+          "user": "rakshit",
+          "booked_at": bookedAt,
+          "qr_code": key,
+          "slot": 2,
+          "venue": widget.museum
+        }),
+      );
 
-    // Handle the HTTP response
-    if (response.statusCode == 200) {
-      // If the server returns a 200 OK response, parse the JSON
-      print('Ticket posted successfully: ${response.body}');
-     
-    } else {
-      // If the server returns an error response, throw an exception
-      print('Failed to post ticket: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      // Handle the HTTP response
+      if (response.statusCode == 200) {
+        // If the server returns a 200 OK response, parse the JSON
+        print('Ticket posted successfully: ${response.body}');
+      } else {
+        // If the server returns an error response, throw an exception
+        print('Failed to post ticket: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+    } catch (e) {
+      // Handle any errors that occur during the HTTP request
+      print('Error posting ticket: $e');
     }
-  } catch (e) {
-    // Handle any errors that occur during the HTTP request
-    print('Error posting ticket: $e');
   }
-}
 
   void _bookTickets() {
     var screenSize = MediaQuery.of(context).size;
@@ -394,7 +396,7 @@ Future<void> _PostTicket(String key) async {
           .where((entry) => entry.value > 0)
           .map((entry) => '${entry.key}: ${entry.value}')
           .join('\n');
-          
+
       showModalBottomSheet(
         context: context,
         builder: (BuildContext context) {
@@ -422,8 +424,9 @@ Future<void> _PostTicket(String key) async {
                 SizedBox(height: 16),
                 FilledButton(
                   style: ButtonStyle(
-                      fixedSize: WidgetStatePropertyAll(Size(
-                          screenSize.width * 0.9, screenSize.width * 0.13))),
+                    fixedSize: MaterialStateProperty.all(
+                        Size(screenSize.width * 0.9, screenSize.width * 0.13)),
+                  ),
                   child: Text('Confirm'),
                   onPressed: () {
                     Navigator.of(context).pop();
