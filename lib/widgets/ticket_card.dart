@@ -1,3 +1,5 @@
+import 'package:codesix/constants/museum_list.dart';
+import 'package:codesix/models/museum_model.dart';
 import 'package:codesix/models/ticket_model.dart';
 import 'package:codesix/widgets/Qr_widget.dart';
 import 'package:custom_qr_generator/custom_qr_generator.dart';
@@ -18,10 +20,14 @@ class TicketCard extends StatefulWidget {
 }
 
 class _TicketCardState extends State<TicketCard> {
+  Museum _getMusuemByName(String name) {
+    return museums.firstWhere((musuem) => musuem.name == name);
+  }
+
   @override
   Widget build(BuildContext context) {
     var screenSize = MediaQuery.of(context).size;
-
+    var museum = _getMusuemByName(widget.ticket.venue);
 
     return Card(
       margin: EdgeInsets.all(8.0),
@@ -35,7 +41,7 @@ class _TicketCardState extends State<TicketCard> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12.0),
             child: Image.asset(
-              "assets/images/VictoriaHall.jpg",
+              museum.imagePath,
               fit: BoxFit.cover,
               height: screenSize.height * 0.19,
               width: double.infinity,
@@ -60,10 +66,10 @@ class _TicketCardState extends State<TicketCard> {
             collapsedTextColor: Colors.white,
             collapsedIconColor: Colors.white,
             childrenPadding: const EdgeInsets.all(3),
-            textColor: Colors.teal,
-            iconColor: Colors.teal,
+            textColor: Colors.teal.shade100,
+            iconColor: Colors.teal.shade100,
             enableFeedback: true,
-
+          
             trailing: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               mainAxisSize: MainAxisSize.min,
@@ -72,19 +78,23 @@ class _TicketCardState extends State<TicketCard> {
                 SizedBox(width: screenSize.width * 0.01),
                 Text(
                   "View Ticket",
-                  style: TextStyle(fontSize: screenSize.height * 0.015),
-                )
+                  style: TextStyle(fontSize: screenSize.height * 0.018),
+                ),
               ],
             ),
-
+          
             title: Text(
               widget.ticket.venue,
-              style: TextStyle(color: Colors.white),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge!
+                  .copyWith(color: Colors.white, fontWeight: FontWeight.w500),
             ),
             // collapsedBackgroundColor: Colors.white,
+            visualDensity: VisualDensity.comfortable,
             children: [
               Container(
-               height: screenSize.height*0.12, 
+                height: screenSize.height * 0.12,
               ),
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -94,7 +104,7 @@ class _TicketCardState extends State<TicketCard> {
                     Expanded(
                       flex: 1,
                       child: Column(
-                        crossAxisAlignment:CrossAxisAlignment.start ,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Name: ${widget.ticket.user}"),
                           Text("Venue: ${widget.ticket.venue}")

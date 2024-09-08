@@ -43,12 +43,20 @@ class _MyBookingsState extends State<MyBookings> {
 
     for (var data in responseData) {
       if (data['qr_code'] != null) {
-        tickets.add(Ticket(data['user'], data['slot'],
-            key: data['qr_code'],
-            venue: "National Science Museum",
-            date: DateTime.now().add(Duration(days: 2))));
+        tickets.add(
+          Ticket(
+            data['user'],
+            data['slot'],
+            key: data['qr_code'].toString(),
+            venue: data['venue'],
+            date: DateTime.now().add(
+              Duration(days: 2),
+            ),
+          ),
+        );
       }
     }
+    setState(() {});
     print("Final Tickets List: ");
     for (var ticket in tickets) {
       print(ticket.user + " " + ticket.key + " " + ticket.slot.toString());

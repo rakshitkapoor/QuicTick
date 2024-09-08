@@ -346,9 +346,6 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
 
   Future<void> _PostTicket(String key) async {
     try {
-      // Generate the current date and time in the required format
-      String bookedAt = DateTime.now().toUtc().toIso8601String() + 'Z';
-
       // Post the ticket details to the server
       final response = await http.post(
         Uri.parse("http://192.168.1.5:8000/api/tickets/"),
@@ -356,7 +353,6 @@ class _TicketBookingPageState extends State<TicketBookingPage> {
         body: jsonEncode({
           "id": 1,
           "user": "rakshit",
-          "booked_at": bookedAt,
           "qr_code": key,
           "slot": 2,
           "venue": widget.museum
