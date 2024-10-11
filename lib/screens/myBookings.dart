@@ -36,7 +36,7 @@ class _MyBookingsState extends State<MyBookings> {
 
   Future<void> _getTickets() async {
     http.Response response = await http.get(
-      Uri.parse("http://192.168.1.5:8000/api/tickets"),
+      Uri.parse("http://192.168.1.5:8000/api/tickets/"),
     );
     final responseData = jsonDecode(response.body);
     print("Tickets Data: ${responseData}");

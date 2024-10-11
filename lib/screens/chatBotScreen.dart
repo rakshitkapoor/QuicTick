@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:codesix/constants/dummyList.dart';
+import 'package:codesix/screens/dashboard.dart';
 import 'package:codesix/screens/ticketBooking.dart';
 import 'package:codesix/widgets/appDrawer.dart';
 import 'package:codesix/widgets/customIconContainer.dart';
 import 'package:codesix/widgets/fancyButton.dart';
+import 'package:custom_qr_generator/custom_qr_generator.dart';
+import 'package:custom_qr_generator/qr_painter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:codesix/widgets/own_message_card.dart';
@@ -13,6 +17,7 @@ import 'package:codesix/widgets/reply_message_card.dart';
 import 'package:codesix/widgets/glassmorphism.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 // import 'package:codesix/services/chat_service.dart'; // You'll need to create this
 
@@ -32,6 +37,12 @@ class _ChatBotScreenState extends State<ChatBotScreen>
   bool intentFound = false;
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+  bool showTicketsNow = false;
+  bool _isPaymentProcessed = false;
+  late Razorpay _razorpay;
+    String _randomNumbers = '';
+  String? storedRandomNumber;
+  late var ticket_info;
 
   @override
   void initState() {
@@ -48,6 +59,126 @@ class _ChatBotScreenState extends State<ChatBotScreen>
       parent: _animationController,
       curve: Curves.easeInSine,
     ));
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+    void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    var screenSize = MediaQuery.of(context).size;
+    if (!_isPaymentProcessed) {
+      _isPaymentProcessed = true;
+      _generateRandomNumbers();
+      print("Payment Success");
+      print("Random Number: $storedRandomNumber");
+
+      showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return Container(
+            width: screenSize.width,
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize:
+                  MainAxisSize.min, // Set this to take minimum vertical space
+              children: <Widget>[
+                Text(
+                  'Booking Confirmation',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                Container(
+                  child: CustomPaint(
+                    painter: QrPainter(
+                      data: _randomNumbers,
+                      options: const QrOptions(
+                        shapes: QrShapes(
+                          darkPixel:
+                              QrPixelShapeRoundCorners(cornerFraction: 0.05),
+                          frame: QrFrameShapeCircle(),
+                          ball: QrBallShapeCircle(),
+                        ),
+                        colors: QrColors(
+                          dark: QrColorSolid(Colors.black),
+                          light: QrColorSolid(Colors.black),
+                        ),
+                      ),
+                    ),
+                    size: const Size(150, 150),
+                  ),
+                ),
+                Text("Venue: ${ticket_info['museum_location']}"),
+                Text(
+                    "Date: ${ticket_info['visit_date']}"),
+                FilledButton(
+                  onPressed: () async{
+                    await _PostTicket(_randomNumbers);
+                     Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Dashboard(),
+                        ));
+                  },
+                  child: const Text("Okay"),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    // Do something when payment fails
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment failed! Please try again.')),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    // Do something when an external wallet was selected
+  }
+
+  void _generateRandomNumbers() {
+    print("Generating Random Number");
+    final _random = Random();
+    _randomNumbers =
+        (_random.nextInt(900000) + 1000000).toString(); // 7-digit string
+    storedRandomNumber = _randomNumbers; // store the generated random number
+    print("Random Number Generated: $storedRandomNumber");
+  }
+
+    Future<void> _PostTicket(String key) async {
+    try {
+      // Post the ticket details to the server
+      final response = await http.post(
+        Uri.parse("http://192.168.1.5:8000/api/tickets/"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "id": 1,
+          "user": "rakshit",
+          "qr_code": key,
+          "slot": 2,
+          "venue": ticket_info['museum_location'],
+        }),
+      );
+
+      // Handle the HTTP response
+      if (response.statusCode == 200) {
+        // If the server returns a 200 OK response, parse the JSON
+        print('Ticket posted successfully: ${response.body}');
+      } else {
+        // If the server returns an error response, throw an exception
+        print('Failed to post ticket: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+    } catch (e) {
+      // Handle any errors that occur during the HTTP request
+      print('Error posting ticket: $e');
+    }
   }
 
   @override
@@ -105,7 +236,13 @@ class _ChatBotScreenState extends State<ChatBotScreen>
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
-        if (!responseData.containsKey('Response')) {
+        print("Body: ${responseData['ticket']}");
+        // check for tickets in the response
+        if (responseData.containsKey('ticket')) {
+          ticket_info=responseData['ticket'];
+          _showConfirmation(responseData['ticket']);
+        }
+        if (!responseData.containsKey('output')) {
           throw Exception("Response not found");
         }
         // print("Response: ${responseData['intent']}");
@@ -113,7 +250,7 @@ class _ChatBotScreenState extends State<ChatBotScreen>
             responseData['intent'] == 'parchi_kaatna') intentFound = true;
         setState(() {
           _chatMessages.add({
-            'msg': responseData['Response'],
+            'msg': responseData['output'],
             'chatIndex': 1,
           });
         });
@@ -129,6 +266,79 @@ class _ChatBotScreenState extends State<ChatBotScreen>
         });
       });
     }
+  }
+
+  void _showConfirmation(dynamic ticket) {
+    var screenSize = MediaQuery.of(context).size;
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          width: screenSize.width,
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize:
+                MainAxisSize.min, // Set this to take minimum vertical space
+            children: <Widget>[
+              Text(
+                'Booking Confirmation',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Venue: ${ticket['museum_location']}',
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Visit Date: ${ticket['visit_date']}',
+              ),
+              // SizedBox(height: 16),
+              Text(
+                'Ticket: ${ticket['ticket_type']}',
+              ),
+              // SizedBox(height: 16),
+              Text(
+                'Amount/ticket: ₹70',
+              ),
+              // Text('Time: ${selectedTime!.format(context)}'),
+              // SizedBox(height: 16),
+              // Text('Tickets:'),
+              // Text(bookingSummary),
+              // SizedBox(height: 16),
+              FilledButton(
+                style: ButtonStyle(
+                  fixedSize: MaterialStateProperty.all(
+                      Size(screenSize.width * 0.9, screenSize.width * 0.13)),
+                ),
+                child: Text('Confirm'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _isPaymentProcessed = false;
+                  var options = {
+                    'key': 'rzp_test_Y821RY8RBBNuvj',
+                    'amount': 70,
+                    'currency': 'INR',
+                    'name': 'Acme Corp.',
+                    'description': 'Fine T-Shirt',
+                    'prefill': {
+                      'contact': '9625232065',
+                      'email': 'test@razorpay.com'
+                    }
+                  };
+                  _razorpay.open(options);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Booking successful!')),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
